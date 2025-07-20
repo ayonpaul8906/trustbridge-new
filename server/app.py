@@ -53,9 +53,9 @@ model = genai.GenerativeModel('gemini-2.0-flash')
 
 # Configure Cloudinary
 cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", 'dg3fyadhh'),
-    api_key=os.getenv("CLOUDINARY_API_KEY", '538535575627691'),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET", '_0siXrv7gtsU5SE2uSVHrKyjp8I')
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
 # Helper to verify Firebase ID token
