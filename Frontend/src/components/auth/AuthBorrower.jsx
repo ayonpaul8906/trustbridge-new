@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -20,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Checkbox } from "../ui/checkbox";
 import {
   Card,
@@ -38,6 +38,7 @@ import {
 } from "firebase/auth";
 import { auth, db } from "../../firebase";
 import { doc, setDoc } from "firebase/firestore";
+
 
 const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -61,7 +62,6 @@ const signUpSchema = z
         "Password must contain at least one uppercase letter, one lowercase letter, one number and one special character"
       ),
     confirmPassword: z.string(),
-    panId: z.string().min(1, "PAN ID is required"),
     monthlyIncome: z.enum(["below_5k", "5k_10k", "10k_20k", "above_20k"]),
     education: z.enum(["none", "primary", "secondary", "graduate"]),
     loanPurpose: z.string().min(1, "Loan purpose is required"),
@@ -75,7 +75,30 @@ const signUpSchema = z
   });
 
 export default function BorrowerAuthPage() {
+  const navigate = useNavigate();
+
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
   const [isLoading, setIsLoading] = useState(false);
+  const [panImage, setPanImage] = useState(null);
+  const [selfieImage, setSelfieImage] = useState(null);
+  const [verificationMessage, setVerificationMessage] = useState("");
+  const [isVerified, setIsVerified] = useState(false);
+
+  // Camera modal state
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // OTP states
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  // PAN Loader
+  const [panVerificationLoading, setPanVerificationLoading] = useState(false);
 
   const signInForm = useForm({
     resolver: zodResolver(signInSchema),
@@ -89,6 +112,107 @@ export default function BorrowerAuthPage() {
     },
   });
 
+  // Camera modal handlers
+  const openCamera = async () => {
+    setCameraError("");
+    setShowCamera(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      setCameraError("Unable to access camera.");
+    }
+  };
+
+  const captureSelfie = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        setSelfieImage(new File([blob], "selfie.jpg", { type: "image/jpeg" }));
+        setShowCamera(false);
+        // Stop camera stream
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach((track) => track.stop());
+        }
+      }, "image/jpeg");
+    }
+  };
+
+  const closeCamera = () => {
+    setShowCamera(false);
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+    }
+  };
+
+  // OTP handlers
+  const handleSendOtp = async () => {
+    const email = signUpForm.getValues("email");
+    if (!email) {
+      toast.error("Please enter your email first.");
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/send-otp`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setOtpSent(true);
+        toast.success("OTP sent to your email.");
+      } else {
+        toast.error(data.message || "Failed to send OTP.");
+      }
+    } catch (err) {
+      toast.error("Failed to send OTP.");
+    }
+    setOtpLoading(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    const email = signUpForm.getValues("email");
+    if (!otpInput) {
+      toast.error("Please enter the OTP.");
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/verify-otp`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, otp: otpInput }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setOtpVerified(true);
+        toast.success("Email verified!");
+      } else {
+        setOtpVerified(false);
+        toast.error(data.message || "Invalid OTP.");
+      }
+    } catch (err) {
+      toast.error("Failed to verify OTP.");
+    }
+    setOtpLoading(false);
+  };
+
   async function onSignIn(values) {
     setIsLoading(true);
     try {
@@ -99,9 +223,6 @@ export default function BorrowerAuthPage() {
         password
       );
       const user = userCredential.user;
-      // console.log("User signed in:", user.uid);
-
-      // console.log(values);
       toast.success("Successfully signed in!", {
         position: "top-right",
         autoClose: 3000,
@@ -126,7 +247,127 @@ export default function BorrowerAuthPage() {
     }
   }
 
+  async function verifyPan() {
+    if (!panImage || !selfieImage) {
+      toast.error("Please upload PAN image and capture a selfie.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return;
+    }
+
+    const fullName = signUpForm.getValues("fullName");
+    const phone = signUpForm.getValues("phone");
+
+    if (!fullName || !phone) {
+      toast.error("Please fill in your full name and phone number.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("fullName", fullName);
+    formData.append("phone", phone);
+    formData.append("live_image", selfieImage);
+    formData.append("doc_image", panImage);
+
+    // ADD THIS:
+    const user = auth.currentUser;
+    const uid = user ? user.uid : "test_uid";
+    formData.append("uid", uid);
+
+    // Loading Start
+    setPanVerificationLoading(true);
+
+    try {
+      const response = await fetch(
+        `https://bzn05lgb-5000.inc1.devtunnels.ms//face/verify`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+      setVerificationMessage(data.message);
+
+      if (data.match) {
+        setIsVerified(true);
+        toast.success("PAN verification successful!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
+      } else {
+        setIsVerified(false);
+        toast.error(data.message, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
+      }
+    } catch (error) {
+      toast.error("Verification failed. Please try again.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+    } finally {
+      // Stop loading
+      setPanVerificationLoading(false);
+    }
+  }
+
   async function onSignUp(values) {
+    if (!otpVerified) {
+      toast.error("Please verify your email with OTP before proceeding.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return;
+    }
+    if (!isVerified) {
+      toast.error("Please verify your PAN before proceeding.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { email, password } = values;
@@ -147,9 +388,6 @@ export default function BorrowerAuthPage() {
         role: "borrower",
       });
 
-      console.log("User created and data stored successfully.");
-
-      console.log(values);
       toast.success("Account created Successfully!", {
         position: "top-right",
         autoClose: 3000,
@@ -161,24 +399,24 @@ export default function BorrowerAuthPage() {
       });
     } catch (error) {
       // Show specific error message
-    let errorMessage = "Registration failed";
-    
-    switch (error.code) {
-      case 'auth/email-already-in-use':
-        errorMessage = "This email is already registered";
-        break;
-      case 'auth/invalid-email':
-        errorMessage = "Invalid email address";
-        break;
-      case 'auth/operation-not-allowed':
-        errorMessage = "Email/password accounts are not enabled";
-        break;
-      case 'auth/weak-password':
-        errorMessage = "Password is too weak";
-        break;
-      default:
-        errorMessage = error.message;
-    }
+      let errorMessage = "Registration failed";
+
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          errorMessage = "This email is already registered";
+          break;
+        case "auth/invalid-email":
+          errorMessage = "Invalid email address";
+          break;
+        case "auth/operation-not-allowed":
+          errorMessage = "Email/password accounts are not enabled";
+          break;
+        case "auth/weak-password":
+          errorMessage = "Password is too weak";
+          break;
+        default:
+          errorMessage = error.message;
+      }
       toast.error(errorMessage, {
         position: "top-right",
         autoClose: 3000,
@@ -195,6 +433,25 @@ export default function BorrowerAuthPage() {
 
   return (
     <div className="min-h-screen w-full py-10 relative overflow-hidden bg-gradient-to-b from-gray-900 to-black">
+      {/* Camera Modal */}
+      {showCamera && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="bg-gray-900 rounded-lg p-6 flex flex-col items-center">
+            <video ref={videoRef} className="w-64 h-48 rounded mb-4" autoPlay />
+            <canvas ref={canvasRef} style={{ display: "none" }} />
+            {cameraError && <p className="text-red-400">{cameraError}</p>}
+            <div className="flex gap-4">
+              <Button onClick={captureSelfie} className="bg-blue-600">
+                Capture
+              </Button>
+              <Button onClick={closeCamera} className="bg-gray-700">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -left-4 top-1/4 h-[500px] w-[500px] rounded-full bg-purple-500/10 blur-[100px] animate-pulse" />
         <div className="absolute -right-4 top-1/2 h-[400px] w-[400px] rounded-full bg-blue-500/10 blur-[100px] animate-pulse delay-1000" />
@@ -398,9 +655,55 @@ export default function BorrowerAuthPage() {
                                   placeholder="name@example.com"
                                   type="email"
                                   {...field}
+                                  disabled={otpVerified}
                                 />
                               </FormControl>
                               <FormMessage className="text-red-400" />
+                              {/* OTP Button and Input */}
+                              {!otpVerified && (
+                                <div className="mt-2 flex flex-col gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="w-fit bg-gradient-to-r from-purple-500 to-blue-500"
+                                    onClick={handleSendOtp}
+                                    disabled={otpLoading || otpSent}
+                                  >
+                                    {otpLoading
+                                      ? "Sending OTP..."
+                                      : otpSent
+                                      ? "OTP Sent"
+                                      : "Get OTP"}
+                                  </Button>
+                                  {otpSent && (
+                                    <div className="flex gap-2 items-center">
+                                      <Input
+                                        type="text"
+                                        placeholder="Enter OTP"
+                                        value={otpInput}
+                                        onChange={(e) =>
+                                          setOtpInput(e.target.value)
+                                        }
+                                        className="w-32"
+                                      />
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        className="bg-blue-600"
+                                        onClick={handleVerifyOtp}
+                                        disabled={otpLoading || otpVerified}
+                                      >
+                                        Verify OTP
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {otpVerified && (
+                                    <span className="text-green-400 text-xs">
+                                      Email verified!
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </FormItem>
                           )}
                         />
@@ -499,24 +802,88 @@ export default function BorrowerAuthPage() {
                       </h3>
                       <div className="grid gap-4">
                         <FormField
-                          name="panId"
+                          name="panImage"
                           control={signUpForm.control}
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-gray-200">
-                                PAN ID
+                                Upload PAN Image
                               </FormLabel>
                               <FormControl>
                                 <Input
+                                  type="file"
+                                  accept="image/*"
                                   className="bg-gray-900/30 text-gray-100 border-gray-700/50 focus:border-purple-500/50 focus:ring-purple-500/20"
-                                  placeholder="Enter your PAN ID number"
-                                  {...field}
+                                  onChange={(e) =>
+                                    setPanImage(e.target.files[0])
+                                  }
                                 />
                               </FormControl>
                               <FormMessage className="text-red-400" />
                             </FormItem>
                           )}
                         />
+                        {/* Selfie Capture Section */}
+                        <div>
+                          <label className="text-gray-200 block mb-2">
+                            Capture Selfie (Live)
+                          </label>
+                          <Button
+                            type="button"
+                            onClick={openCamera}
+                            className="mb-2 bg-gradient-to-r from-purple-500 to-blue-500"
+                          >
+                            Open Camera
+                          </Button>
+                          {selfieImage && (
+                            <div className="mt-2">
+                              <img
+                                src={URL.createObjectURL(selfieImage)}
+                                alt="Selfie Preview"
+                                className="w-24 h-24 rounded-full object-cover border-2 border-purple-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={verifyPan}
+                          disabled={panVerificationLoading || isVerified}
+                          className={`w-full h-11 font-medium rounded-lg shadow-lg transition-all duration-200 ${
+                            isVerified
+                              ? "bg-green-600 hover:bg-green-600 text-white"
+                              : "bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white hover:shadow-purple-500/20"
+                          }`}
+                        >
+                          {panVerificationLoading ? (
+                            <span className="flex items-center gap-2">
+                              <span className="h-4 w-4 border-2 border-white/30 border-t-white animate-spin rounded-full" />
+                              Verifying PAN...
+                            </span>
+                          ) : isVerified ? (
+                            <span className="flex items-center gap-2">
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              Verified
+                            </span>
+                          ) : (
+                            "Verify PAN"
+                          )}
+                        </Button>
+                        <p className="text-sm text-gray-400 mt-2">
+                          {verificationMessage}
+                        </p>
                         <div className="grid gap-4 md:grid-cols-2">
                           <FormField
                             name="monthlyIncome"
@@ -643,14 +1010,25 @@ export default function BorrowerAuthPage() {
                             </div>
                           </FormControl>
                           <div className="space-y-1 flex-1">
-                            <FormLabel className="text-sm text-gray-300 leading-tight">
-                              I agree to TrustBridge's terms and policies
-                            </FormLabel>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <FormLabel className="text-sm text-gray-300 leading-tight">
+                                I agree to TrustBridge's terms and policies
+                              </FormLabel>
+                            </div>
                             <p className="text-xs text-gray-400">
                               By checking this box, you agree to our lending
                               guidelines, data privacy policy, and code of
                               conduct
                             </p>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  window.open("/terms-and-conditions", "_blank")
+                                }
+                                className="text-xs text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
+                              >
+                                Read Guidelines
+                              </button>
                           </div>
                           <FormMessage className="text-red-400" />
                         </FormItem>

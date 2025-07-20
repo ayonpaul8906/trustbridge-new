@@ -26,6 +26,12 @@ import LenderPreferencesForm from "./pages/lender/LenderPreferencesForm";
 import LoanRequests from "./pages/lender/LoanRequests";
 import ActiveBorrowers from "./pages/lender/ActiveBorrowers"; 
 
+
+// RBI GUIDELINE
+import Rbi_guideline from "../src/components/Rbi_guideline"
+
+
+
 export default function App() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
@@ -34,6 +40,7 @@ export default function App() {
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
+        <Route path="/terms-and-conditions" element={<Rbi_guideline />} />
         
         <Route path="/team" element={<Team />} />
         <Route path="/documents" element={<DocPage />} />

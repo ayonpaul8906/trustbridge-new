@@ -559,14 +559,25 @@ const onSignUp = async (values) => {
                             </div>
                           </FormControl>
                           <div className="space-y-1 flex-1">
-                            <FormLabel className="text-sm text-gray-300 leading-tight">
-                              I agree to TrustBridge's terms and policies
-                            </FormLabel>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <FormLabel className="text-sm text-gray-300 leading-tight">
+                                I agree to TrustBridge's terms and policies
+                              </FormLabel>
+                            </div>
                             <p className="text-xs text-gray-400">
                               By checking this box, you agree to our lending
                               guidelines, data privacy policy, and code of
                               conduct
                             </p>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  window.open("/terms-and-conditions", "_blank")
+                                }
+                                className="text-xs text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
+                              >
+                                Read Guidelines
+                              </button>
                           </div>
                           <FormMessage className="text-red-400" />
                         </FormItem>

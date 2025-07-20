@@ -19,15 +19,49 @@ const LenderPreferencesForm = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    let warningText = "";
+    if (name === "maxAmount" && parseFloat(value) > MAX_LEND_AMOUNT) {
+      warningText = `Maximum allowed is ${MAX_LEND_AMOUNT} ETH`;
+    }
+    if (name === "interestRate" && parseFloat(value) > MAX_INTEREST_RATE) {
+      warningText = `Maximum allowed is ${MAX_INTEREST_RATE}%`;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setWarnings((prev) => ({
+      ...prev,
+      [name]: warningText,
+    }));
   };
+
+  const MAX_LEND_AMOUNT = 0.5; // in ETH
+  const MAX_INTEREST_RATE = 10; // in %
+
+  const [warnings, setWarnings] = useState({
+    maxAmount: "",
+    interestRate: "",
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+
+    const amount = parseFloat(formData.maxAmount);
+    const interest = parseFloat(formData.interestRate);
+
+    if (amount > MAX_LEND_AMOUNT || interest > MAX_INTEREST_RATE) {
+      alert(
+        `⚠️ Lend amount cannot exceed ${MAX_LEND_AMOUNT} ETH and interest rate must be ≤ ${MAX_INTEREST_RATE}%.`
+      );
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const auth = getAuth();
@@ -43,7 +77,6 @@ const LenderPreferencesForm = () => {
       const lenderDocRef = doc(db, "lenders", userId);
       await setDoc(lenderDocRef, formData, { merge: true });
 
-
       setFormData({ name: "", maxAmount: "", interestRate: "", location: "" });
       alert("Lender preferences saved successfully!");
     } catch (err) {
@@ -53,6 +86,34 @@ const LenderPreferencesForm = () => {
 
     setSubmitting(false);
   };
+
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   setSubmitting(true);
+
+  //   try {
+  //     const auth = getAuth();
+  //     const user = auth.currentUser;
+
+  //     if (!user) {
+  //       alert("You must be signed in to save preferences.");
+  //       setSubmitting(false);
+  //       return;
+  //     }
+
+  //     const userId = user.uid;
+  //     const lenderDocRef = doc(db, "lenders", userId);
+  //     await setDoc(lenderDocRef, formData, { merge: true });
+
+  //     setFormData({ name: "", maxAmount: "", interestRate: "", location: "" });
+  //     alert("Lender preferences saved successfully!");
+  //   } catch (err) {
+  //     console.error("Error saving preferences:", err);
+  //     alert("Something went wrong. Try again.");
+  //   }
+
+  //   setSubmitting(false);
+  // };
 
   return (
     <DashboardWrapper>
@@ -84,7 +145,7 @@ const LenderPreferencesForm = () => {
           {
             label: "Max Lend Amount",
             name: "maxAmount",
-            placeholder: "e.g., 5000",
+            placeholder: "e.g., 0.01 ETH",
             icon: <HandCoins size={16} className="text-yellow-400" />,
             type: "number",
             required: true,
@@ -120,6 +181,11 @@ const LenderPreferencesForm = () => {
               required={field.required}
               className="mt-1 transition-all duration-300 focus:ring-2 focus:ring-teal-400 bg-gray-800 text-white border-gray-700"
             />
+            {warnings[field.name] && (
+              <p className="text-sm text-red-500 mt-1">
+                {warnings[field.name]}
+              </p>
+            )}
           </div>
         ))}
 

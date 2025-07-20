@@ -1,492 +1,308 @@
-// import React, { useState, useEffect } from "react";
-// import { motion } from "framer-motion";
-// import {
-//     ArrowUpRight,
-//     ArrowDownRight,
-//     UploadCloud,
-//     FileCheck2,
-//     Clock,
-//     Loader2,
-// } from "lucide-react";
-// import DashboardWrapper from "../components/shared/DashboardWrapper";
-// import Header from "../components/header"
-// import Footer from "../components/footer"
-
-// const paymentHistory = [
-//     { date: "2025-04-01", amount: 100, status: "on-time", impact: +5 },
-//     { date: "2025-04-15", amount: 100, status: "late", impact: -10 },
-//     { date: "2025-05-01", amount: 100, status: "on-time", impact: +5 },
-//     { date: "2025-05-05", amount: 100, status: "missed", impact: -15 },
-// ];
-
-// const calculateTrustScore = (docs) => {
-//     const baseScore = 0;
-//     const totalImpact = paymentHistory.reduce((acc, p) => acc + p.impact, 0);
-//     const docBonus = docs.length * 5;
-//     return Math.min(100, Math.max(0, baseScore + totalImpact + docBonus));
-// };
-
-// const TrustScore = () => {
-//     const [user] = useAuthState(auth);
-//     const [uploadedDocs, setUploadedDocs] = useState([]);
-//     const [trustScore, setTrustScore] = useState(0);
-//     const [animatedScore, setAnimatedScore] = useState(0);
-//     const [loading, setLoading] = useState(false);
-//     const [explanation, setExplanation] = useState("");
-
-//     // const handleFileUpload = async (e) => {
-//     //     const files = Array.from(e.target.files || []);
-//     //     if (files.length === 0) return;
-
-//     //     setLoading(true);
-//     //     const formData = new FormData();
-
-//     //     files.forEach(file => {
-//     //         formData.append("document", file);
-//     //     });
-
-//     //     try {
-//     //         const response = await fetch("http://localhost:5000/vision/first-trustscore", {
-//     //             method: "POST",
-//     //             body: formData,
-//     //         });
-//     const handleFileUpload = async (e) => {
-//         if (!user) {
-//             toast.error("Please login first");
-//             return;
-//         }
-
-//         const files = Array.from(e.target.files || []);
-//         if (files.length === 0) return;
-
-//         setLoading(true);
-//         const formData = new FormData();
-
-//         // Add UID to form data
-//         formData.append("uid", user.uid);
-
-//         files.forEach(file => {
-//             formData.append("document", file);
-//         });
-
-//         try {
-//             const response = await fetch("http://localhost:5000/vision/first-trustscore", {
-//                 method: "POST",
-//                 body: formData,
-//             });
-
-//             const data = await response.json();
-
-//             if (response.ok) {
-//                 setTrustScore(data.trust_score);
-//                 setExplanation(data.explanation);
-
-//                 // Add uploaded files to the list
-//                 const newDocs = files.map(f => ({
-//                     name: f.name,
-//                     type: f.type,
-//                     uploadedAt: new Date().toLocaleDateString(),
-//                 }));
-//                 setUploadedDocs(prev => [...prev, ...newDocs]);
-
-//                 toast.success("Documents processed successfully!");
-//             } else {
-//                 throw new Error(data.error || "Failed to process documents");
-//             }
-//         } catch (error) {
-//             console.error("Upload error:", error);
-//             toast.error(error.message || "Failed to upload documents");
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     // Animation effect for the score
-//     useEffect(() => {
-//         const interval = setInterval(() => {
-//             setAnimatedScore(prev => {
-//                 if (prev < trustScore) return prev + 1;
-//                 if (prev > trustScore) return prev - 1;
-//                 return prev;
-//             });
-//         }, 20);
-//         return () => clearInterval(interval);
-//     }, [trustScore]);
-
-//     const getStatusColor = (status) => {
-//         switch (status) {
-//             case "on-time":
-//                 return "text-green-400";
-//             case "late":
-//                 return "text-yellow-400";
-//             case "missed":
-//                 return "text-red-400";
-//             default:
-//                 return "text-gray-400";
-//         }
-//     };
-
-//     return (
-//         <div>
-//             {/* <Header /> */}
-//             <DashboardWrapper>
-//             <div className="bg-[#0f172a] text-white min-h-screen p-6">
-//                 <div className="flex flex-col lg:flex-row gap-6">
-//                     {/* Trust Score Panel */}
-//                     <motion.div
-//                         className="bg-[#1e293b] rounded-3xl p-8 flex-1 shadow-xl"
-//                         initial={{ opacity: 0, y: 40 }}
-//                         animate={{ opacity: 1, y: 0 }}
-//                         transition={{ duration: 0.6 }}
-//                     >
-//                         <h2 className="text-3xl font-bold mb-2">Trust Score</h2>
-//                         <p className="text-slate-400 mb-4">
-//                             Upload your financial documents to calculate your trust score.
-//                         </p>
-
-//                         {/* Score Display */}
-//                         <div className="relative w-48 h-48 mx-auto my-8">
-//                             <svg className="absolute top-0 left-0 w-full h-full">
-//                                 <circle cx="50%" cy="50%" r="70" stroke="#334155" strokeWidth="12" fill="none" />
-//                                 <circle
-//                                     cx="50%"
-//                                     cy="50%"
-//                                     r="70"
-//                                     stroke="url(#gradient)"
-//                                     strokeWidth="12"
-//                                     fill="none"
-//                                     strokeDasharray={440}
-//                                     strokeDashoffset={440 - (animatedScore / 100) * 440}
-//                                     strokeLinecap="round"
-//                                     transform="rotate(-90 120 120)"
-//                                 />
-//                                 <defs>
-//                                     <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="1">
-//                                         <stop offset="0%" stopColor="#38bdf8" />
-//                                         <stop offset="100%" stopColor="#6366f1" />
-//                                     </linearGradient>
-//                                 </defs>
-//                             </svg>
-
-//                             <motion.div
-//                                 className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center"
-//                                 animate={{ scale: [0.95, 1.05, 1] }}
-//                                 transition={{ duration: 0.8, repeat: Infinity, repeatType: "mirror" }}
-//                             >
-//                                 <div className="text-5xl font-bold text-cyan-400">{animatedScore}</div>
-//                                 <div className="text-sm text-slate-400">/ 100</div>
-//                             </motion.div>
-//                         </div>
-
-//                         {/* Explanation */}
-//                         {explanation && (
-//                             <div className="mt-4 p-4 bg-slate-800/50 rounded-xl">
-//                                 <p className="text-slate-300">{explanation}</p>
-//                             </div>
-//                         )}
-//                     </motion.div>
-
-//                     {/* Upload Section */}
-//                     <div className="flex flex-col gap-6 flex-1">
-//                         <motion.div
-//                             className="bg-[#1e293b] p-6 rounded-3xl shadow-xl"
-//                             initial={{ opacity: 0, x: 40 }}
-//                             animate={{ opacity: 1, x: 0 }}
-//                             transition={{ delay: 0.2, duration: 0.6 }}
-//                         >
-//                             <div className="flex items-center gap-2 mb-4">
-//                                 <UploadCloud className="text-cyan-400" />
-//                                 <h3 className="text-lg font-bold">Upload Documents</h3>
-//                             </div>
-
-//                             <div className="relative">
-//                                 <input
-//                                     type="file"
-//                                     accept=".pdf,.jpg,.jpeg,.png"
-//                                     multiple
-//                                     onChange={handleFileUpload}
-//                                     className="w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 
-//                                              file:rounded-full file:border-0 file:bg-cyan-700 file:text-white 
-//                                              hover:file:bg-cyan-600"
-//                                     disabled={loading}
-//                                 />
-//                                 {loading && (
-//                                     <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center rounded-xl">
-//                                         <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-//                                     </div>
-//                                 )}
-//                             </div>
-
-//                             {/* Uploaded Files List */}
-//                             <div className="mt-4 space-y-2">
-//                                 {uploadedDocs.map((doc, i) => (
-//                                     <motion.div
-//                                         key={i}
-//                                         initial={{ opacity: 0, x: -20 }}
-//                                         animate={{ opacity: 1, x: 0 }}
-//                                         transition={{ delay: i * 0.1 }}
-//                                         className="flex justify-between items-center text-sm text-slate-300 bg-slate-800/50 p-2 rounded-lg"
-//                                     >
-//                                         <div className="flex items-center gap-2">
-//                                             <FileCheck2 className="w-4 h-4 text-green-400" />
-//                                             {doc.name}
-//                                         </div>
-//                                         <span className="text-slate-500">{doc.uploadedAt}</span>
-//                                     </motion.div>
-//                                 ))}
-//                             </div>
-//                         </motion.div>
-//                         {/* Payment History */}
-//                         <motion.div
-//                             className="bg-[#1e293b] p-6 rounded-3xl shadow-xl"
-//                             initial={{ opacity: 0, y: 40 }}
-//                             animate={{ opacity: 1, y: 0 }}
-//                             transition={{ delay: 0.4, duration: 0.6 }}
-//                         >
-//                             <h3 className="text-lg font-bold mb-4">Payment History</h3>
-//                             <div className="space-y-3 text-slate-300">
-//                                 {paymentHistory.map((p, idx) => (
-//                                     <motion.div
-//                                         key={idx}
-//                                         initial={{ opacity: 0, x: -20 }}
-//                                         animate={{ opacity: 1, x: 0 }}
-//                                         transition={{ delay: idx * 0.05 }}
-//                                         className="flex justify-between border-b border-slate-700 pb-2"
-//                                     >
-//                                         <div className="flex items-center gap-2 text-sm">
-//                                             <Clock className="w-4 h-4 text-slate-500" />
-//                                             {p.date}
-//                                         </div>
-//                                         <div className="flex items-center gap-2 text-sm font-medium">
-//                                             <span>${p.amount}</span>
-//                                             <span className={`font-bold ${getStatusColor(p.status)}`}>
-//                                                 {p.status.toUpperCase()}
-//                                             </span>
-//                                             {p.impact > 0 ? (
-//                                                 <ArrowUpRight className="w-4 h-4 text-green-400" />
-//                                             ) : (
-//                                                 <ArrowDownRight className="w-4 h-4 text-red-400" />
-//                                             )}
-//                                             <span>{p.impact > 0 ? `+${p.impact}` : p.impact}</span>
-//                                         </div>
-//                                     </motion.div>
-//                                 ))}
-//                             </div>
-//                         </motion.div>
-//                     </div>
-
-//                 </div>
-//             </div>
-//             </DashboardWrapper>
-//             {/* <Footer /> */}
-//         </div>
-//     );
-// };
-
-// export default TrustScore;
-
-
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { UploadCloud, FileCheck2, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { doc, getDoc } from "firebase/firestore";
-import DashboardWrapper from "../components/shared/DashboardWrapper"
+import DashboardWrapper from "../components/shared/DashboardWrapper";
 
 export default function TrustScore() {
-    const [user] = useAuthState(auth);
-    const [uploadedDocs, setUploadedDocs] = useState([]);
-    const [trustScore, setTrustScore] = useState(0);
-    const [animatedScore, setAnimatedScore] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const [explanation, setExplanation] = useState("");
+  const [user] = useAuthState(auth);
+  const [aadhar, setAadhar] = useState(null);
+  const [pan, setPan] = useState(null);
+  const [phone, setPhone] = useState("");
+  const [verified, setVerified] = useState(false);
+  const [financialDocs, setFinancialDocs] = useState([]);
+  const [trustScore, setTrustScore] = useState(0);
+  const [animatedScore, setAnimatedScore] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const BACKEND_URL = "https://bzn05lgb-5000.inc1.devtunnels.ms";
+  const fileInputRef = useRef();
 
-    // Fetch existing trust score when component mounts
-    useEffect(() => {
-        const fetchExistingTrustScore = async () => {
-            if (!user) return;
+  // Animate trust score
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimatedScore((prev) => {
+        if (prev < trustScore) return prev + 1;
+        if (prev > trustScore) return prev - 1;
+        return prev;
+      });
+    }, 20);
+    return () => clearInterval(interval);
+  }, [trustScore]);
 
-            try {
-                const response = await fetch(`${BACKEND_URL}/user/trust-score/${user.uid}`);
-                const data = await response.json();
+  const handleVerification = async () => {
+    if (!aadhar || !pan || phone.length !== 10) {
+      toast.error(
+        "Please upload Aadhaar, PAN, and enter a valid mobile number."
+      );
+      return;
+    }
+    setVerifying(true);
+    try {
+      const formData = new FormData();
+      formData.append("uid", user?.uid || "");
+      formData.append("phone", phone);
+      formData.append("document", aadhar);
+      formData.append("document", pan);
 
-                if (response.ok && data.trust_score) {
-                    setTrustScore(data.trust_score.current);
-                    if (data.trust_score.history?.length > 0) {
-                        setExplanation(data.trust_score.history[0].reason);
-                    }
-                }
-            } catch (error) {
-                console.error("Error fetching trust score:", error);
-            }
-        };
+      const response = await fetch(`${BACKEND_URL}/vision/first-trustscore`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
 
-        fetchExistingTrustScore();
-    }, [user]);
-
-    const handleFileUpload = async (e) => {
-        if (!user) {
-            toast.error("Please login first");
-            return;
-        }
-
-        const files = Array.from(e.target.files || []);
-        if (files.length === 0) return;
-
-        setLoading(true);
-        const formData = new FormData();
-        formData.append("uid", user.uid);
-
-        files.forEach(file => {
-            formData.append("document", file);
+      // Log extracted results for debugging
+      if (data.results) {
+        data.results.forEach((res, idx) => {
+          console.log(
+            `Document ${idx + 1} (${res.filename}) extracted:`,
+            res.extracted_text
+          );
         });
+      }
 
-        try {
-            const response = await fetch(`${BACKEND_URL}/vision/first-trustscore`, {
-                method: "POST",
-                body: formData,
-            });
+      if (response.ok && !data.error) {
+        setVerified(true);
+        setTrustScore(data.trust_score || 0);
+        toast.success("Identity verified!");
+      } else {
+        setVerified(false);
+        toast.error(data.error || "Verification failed.");
+      }
+    } catch (error) {
+      setVerified(false);
+      toast.error("Verification failed.");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
+  // Upload handler for financial docs
+  const handleFinancialDocs = (e) => {
+    if (!verified) {
+      toast.info("Please complete identity verification first.");
+      return;
+    }
+    // Allow multiple uploads by appending new files
+    const newFiles = Array.from(e.target.files || []);
+    setFinancialDocs((prev) => [...prev, ...newFiles]);
+    // Reset input so same file can be re-uploaded if needed
+    e.target.value = "";
+  };
 
-            const data = await response.json();
+  // Remove a file from the list
+  const removeFinancialDoc = (index) => {
+    setFinancialDocs((prev) => prev.filter((_, i) => i !== index));
+  };
 
-            if (response.ok) {
-                setTrustScore(data.trust_score);
-                setExplanation(data.explanation);
+  // Next button: generate trust score
+  const handleNext = async () => {
+  if (!verified) {
+    toast.error("Please complete identity verification first.");
+    return;
+  }
+  if (!user) {
+    toast.error("Please login first.");
+    return;
+  }
+  if (financialDocs.length === 0) {
+    toast.error("Please upload at least one financial document.");
+    return;
+  }
+  setLoading(true);
+  const formData = new FormData();
+  formData.append("uid", user.uid);
+  financialDocs.forEach((file) => formData.append("document", file));
+  try {
+    const response = await fetch(`${BACKEND_URL}/vision/financial-trustscore`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    if (response.ok) {
+      setTrustScore(data.trust_score);
+      toast.success("Trust score generated!");
+    } else {
+      throw new Error(data.error || "Failed to process documents");
+    }
+  } catch (error) {
+    toast.error(error.message || "Failed to upload documents");
+  } finally {
+    setLoading(false);
+  }
+};
 
-                const newDocs = files.map(f => ({
-                    name: f.name,
-                    type: f.type,
-                    uploadedAt: new Date().toLocaleDateString()
-                }));
-                setUploadedDocs(prev => [...prev, ...newDocs]);
+  // Handle click on disabled file input
+  const handleFinancialDocsClick = (e) => {
+    if (!verified) {
+      e.preventDefault();
+      toast.info("Please complete identity verification first.");
+    }
+  };
 
-                // Fetch updated trust score after processing
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                const userData = userDoc.data();
-                if (userData?.trust_score?.current) {
-                    setTrustScore(userData.trust_score.current);
-                }
-
-                toast.success("Documents processed successfully!");
-            } else {
-                throw new Error(data.error || "Failed to process documents");
-            }
-        } catch (error) {
-            console.error("Upload error:", error);
-            toast.error(error.message || "Failed to upload documents");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setAnimatedScore(prev => {
-                if (prev < trustScore) return prev + 1;
-                if (prev > trustScore) return prev - 1;
-                return prev;
-            });
-        }, 20);
-        return () => clearInterval(interval);
-    }, [trustScore]);
-
-    return (
-        <DashboardWrapper>
-            <div className="container mx-auto px-4 py-8">
-                <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Trust Score Panel */}
-                    <motion.div
-                        className="bg-gray-800 rounded-3xl p-8 flex-1 shadow-xl"
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                    >
-                        <h2 className="text-3xl font-bold mb-2 text-white">Trust Score</h2>
-                        <p className="text-gray-400 mb-4">
-                            Upload your financial documents to calculate your trust score.
-                        </p>
-
-                        {/* Score Display */}
-                        <div className="relative w-48 h-48 mx-auto my-8">
-                            <div className="absolute inset-0 rounded-full border-4 border-gray-700" />
-                            <motion.div
-                                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center"
-                                animate={{ scale: [0.95, 1.05, 1] }}
-                                transition={{ duration: 0.8, repeat: Infinity, repeatType: "mirror" }}
-                            >
-                                <div className="text-5xl font-bold text-cyan-400">{animatedScore}</div>
-                                <div className="text-sm text-gray-400">/ 100</div>
-                            </motion.div>
-                        </div>
-
-                        {/* Explanation */}
-                        {explanation && (
-                            <div className="mt-4 p-4 bg-gray-700/50 rounded-xl">
-                                <p className="text-gray-300">{explanation}</p>
-                            </div>
-                        )}
-                    </motion.div>
-
-                    {/* Upload Section */}
-                    <div className="flex flex-col gap-6 flex-1">
-                        <motion.div
-                            className="bg-gray-800 p-6 rounded-3xl shadow-xl"
-                            initial={{ opacity: 0, x: 40 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.2, duration: 0.6 }}
-                        >
-                            <div className="flex items-center gap-2 mb-4">
-                                <UploadCloud className="text-cyan-400" />
-                                <h3 className="text-lg font-bold text-white">Upload Documents</h3>
-                            </div>
-
-                            <div className="relative">
-                                <input
-                                    type="file"
-                                    accept=".pdf,.jpg,.jpeg,.png"
-                                    multiple
-                                    onChange={handleFileUpload}
-                                    className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 
-                                             file:rounded-full file:border-0 file:bg-cyan-700 file:text-white 
-                                             hover:file:bg-cyan-600"
-                                    disabled={loading}
-                                />
-                                {loading && (
-                                    <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center rounded-xl">
-                                        <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Uploaded Files List */}
-                            <div className="mt-4 space-y-2">
-                                {uploadedDocs.map((doc, i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.1 }}
-                                        className="flex justify-between items-center text-sm text-gray-300 bg-gray-700/50 p-2 rounded-lg"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <FileCheck2 className="w-4 h-4 text-green-400" />
-                                            {doc.name}
-                                        </div>
-                                        <span className="text-gray-500">{doc.uploadedAt}</span>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </motion.div>
-                    </div>
-                </div>
+  return (
+    <DashboardWrapper>
+      <div className="min-h-screen flex flex-col lg:flex-row gap-12 items-start justify-center bg-gradient-to-br from-gray-950 to-gray-900 py-12">
+        {/* Left: Identity & Financial Docs */}
+        <motion.div
+          className="bg-[#101624] rounded-3xl p-10 shadow-2xl w-full max-w-lg flex flex-col gap-10 border border-gray-800"
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-8 tracking-tight">
+              Identity Verification
+            </h2>
+            <div className="flex flex-col gap-6">
+              {/* Aadhaar Upload */}
+              <div>
+                <label className="text-gray-300 mb-2 block font-medium">
+                  Aadhaar Card
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setAadhar(e.target.files[0])}
+                  className="hidden"
+                  id="aadhar-upload"
+                  disabled={verified}
+                />
+                <label
+                  htmlFor="aadhar-upload"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-700 text-white cursor-pointer hover:bg-cyan-600 transition font-medium shadow ${
+                    verified ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <UploadCloud className="mr-2" />{" "}
+                  {aadhar ? aadhar.name : "Upload Aadhaar"}
+                </label>
+              </div>
+              {/* PAN Upload */}
+              <div>
+                <label className="text-gray-300 mb-2 block font-medium">
+                  PAN Card
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setPan(e.target.files[0])}
+                  className="hidden"
+                  id="pan-upload"
+                  disabled={verified}
+                />
+                <label
+                  htmlFor="pan-upload"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-700 text-white cursor-pointer hover:bg-cyan-600 transition font-medium shadow ${
+                    verified ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <UploadCloud className="mr-2" />{" "}
+                  {pan ? pan.name : "Upload PAN"}
+                </label>
+              </div>
+              {/* Phone */}
+              <div>
+                <label className="text-gray-300 mb-2 block font-medium">
+                  Mobile Number
+                </label>
+                <input
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                  maxLength={10}
+                  disabled={verified}
+                  className="bg-gray-800 text-white rounded-lg px-3 py-2 w-full border border-gray-700 focus:border-cyan-500 outline-none font-medium"
+                  placeholder="Enter 10-digit number"
+                />
+              </div>
+              {/* Verify Button */}
+              <button
+                onClick={handleVerification}
+                disabled={verifying || verified}
+                className={`w-full py-3 rounded-lg font-semibold mt-2 text-lg shadow transition ${
+                  verified
+                    ? "bg-green-600 text-white cursor-not-allowed"
+                    : "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                }`}
+              >
+                {verifying ? "Verifying..." : verified ? "Verified" : "Verify"}
+              </button>
             </div>
-        </DashboardWrapper>
-    );
+          </div>
+          {/* Financial Docs */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-4 tracking-tight">
+              Financial Documents
+            </h2>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple
+              ref={fileInputRef}
+              onChange={handleFinancialDocs}
+              onClick={handleFinancialDocsClick}
+              disabled={!verified || loading}
+              className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-cyan-700 file:text-white hover:file:bg-cyan-600"
+              style={{ cursor: !verified ? "not-allowed" : "pointer" }}
+            />
+            <div className="mt-3 space-y-2">
+              {financialDocs.map((doc, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 text-sm text-gray-300 bg-gray-800/70 p-2 rounded-lg"
+                >
+                  <FileCheck2 className="w-4 h-4 text-green-400" />
+                  {doc.name}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleNext}
+              disabled={!verified || loading || financialDocs.length === 0}
+              className="w-full mt-6 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-700 hover:to-blue-700 transition shadow"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+              ) : (
+                "Next"
+              )}
+            </button>
+          </div>
+        </motion.div>
+        {/* Right: Trust Score */}
+        <motion.div
+          className="bg-[#101624] rounded-3xl p-10 shadow-2xl w-full max-w-lg flex flex-col items-center justify-center border border-gray-800"
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2 className="text-3xl font-bold mb-2 text-white tracking-tight">
+            Trust Score
+          </h2>
+          <div className="relative w-48 h-48 mx-auto my-8">
+            <div className="absolute inset-0 rounded-full border-4 border-gray-700" />
+            <motion.div
+              className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center"
+              animate={{ scale: [0.95, 1.05, 1] }}
+              transition={{
+                duration: 0.8,
+                repeat: Infinity,
+                repeatType: "mirror",
+              }}
+            >
+              <div className="text-6xl font-bold text-cyan-400">
+                {animatedScore}
+              </div>
+              <div className="text-base text-gray-400">/ 100</div>
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
+    </DashboardWrapper>
+  );
 }
+
